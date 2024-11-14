@@ -1,55 +1,52 @@
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TopSnackbarInScaffoldExample() {
-    val snackbarHostState = remember { SnackbarHostState() }
-    val coroutineScope = rememberCoroutineScope()
+fun TabExample() {
+    var selectedTabIndex by remember { mutableStateOf(0) }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(title = { Text("Top Snackbar Example") })
-        },
-        content = { paddingValues ->
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-            ) {
-                SnackbarHost(
-                    hostState = snackbarHostState,
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .padding(top = 16.dp)
+    val tabTitles = listOf("Tab 1", "Tab 2", "Tab 3")
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        TabRow(
+            selectedTabIndex = selectedTabIndex,
+            modifier = Modifier.padding(8.dp)
+        ) {
+            tabTitles.forEachIndexed { index, title ->
+                Tab(
+                    selected = selectedTabIndex == index,
+                    onClick = {
+                        selectedTabIndex = index
+                    },
+                    text = { Text(title) }
                 )
-
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Button(onClick = {
-                        coroutineScope.launch {
-                            snackbarHostState.showSnackbar("Hello, this is a Snackbar at the top!")
-                        }
-                    }) {
-                        Text("Show Top Snackbar")
-                    }
-                }
             }
         }
+
+        when (selectedTabIndex) {
+            0 -> TabContent("Content for Tab 1")
+            1 -> TabContent("Content for Tab 2")
+            2 -> TabContent("Content for Tab 3")
+        }
+    }
+}
+
+@Composable
+fun TabContent(content: String) {
+    Text(
+        text = content,
+        modifier = Modifier.padding(16.dp)
     )
 }
 
-@Preview(showBackground = true)
+@Preview
 @Composable
-fun PreviewTopSnackbarInScaffoldExample() {
-    TopSnackbarInScaffoldExample()
+fun PreviewTabExample() {
+    TabExample()
 }

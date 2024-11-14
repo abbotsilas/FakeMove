@@ -1,15 +1,24 @@
 package com.silas.fake.move
 
 import LatLng
-import androidx.compose.runtime.State
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 
 class LocationViewModel : ViewModel() {
-    private val _itemList = mutableStateOf<List<LatLng>>(emptyList())
-    val itemList: State<List<LatLng>> get() = _itemList
+    var itemList = mutableStateListOf<LatLng>()
+        private set
+
+    fun clear() {
+        itemList.clear()
+    }
+
+    fun addItem(item: LatLng) {
+        itemList.add(item)
+    }
 
     fun setItemList(list: List<LatLng>) {
-        _itemList.value = list
+        itemList.clear();
+        itemList.addAll(list);
     }
 }

@@ -3,17 +3,19 @@
 package com.silas.fake.move
 
 import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -31,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
+import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -41,20 +44,19 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        val viewModel = LocationPermissionViewModel()
-        viewModel.updatePermission(MyLocationManager.hasPermission(this))
+        val viewModel = PermissionViewModel()
+        viewModel.updateNotificationPermission(PermissionUtils.hasNotificationPermission(this))
+        viewModel.updateLocationPermission(PermissionUtils.hasLocationPermission(this))
         setContent {
             FakeMoveTheme {
                 MyAppNavigation(viewModel)
             }
         }
     }
-
-
 }
 
 @Composable
-fun MyAppNavigation(viewModel: LocationPermissionViewModel) {
+fun MyAppNavigation(viewModel: PermissionViewModel) {
     val navController = rememberNavController()
     val sharedLocationViewModel = LocationViewModel()
     NavHost(
@@ -63,49 +65,59 @@ fun MyAppNavigation(viewModel: LocationPermissionViewModel) {
     ) {
 
         composable("main") {
-            Greeting(
-                name = "Android",
+            MainScreen(
                 viewModel = viewModel,
                 navController = navController
             )
         }
         composable("record") { RecordingScreen(navController, sharedLocationViewModel) }
         composable("play") { LocationList(navController, sharedLocationViewModel) }
-        composable("drawLocations") { DrawLocations(navController, sharedLocationViewModel) }
+        composable("drawLocations") { DrawLocationScreen(navController, sharedLocationViewModel) }
+        composable("settings") { SettingScreen(navController) }
     }
 }
 
 
 @Composable
-fun RequestLocationPermissionScreen(viewModel: LocationPermissionViewModel) {
+fun LocationButton(viewModel: PermissionViewModel) {
 
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean ->
-        viewModel.updatePermission(isGranted)
+        viewModel.updateLocationPermission(isGranted)
     }
-
-    Column(
-        modifier = Modifier
-            .defaultMinSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+    Button(
+        onClick = {
+            launcher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+        },
+        enabled = !viewModel.hasLocationPermission
     ) {
-
-        Button(
-            onClick = {
-                launcher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
-            },
-            enabled = !viewModel.hasLocationPermission
-        ) {
-            Text(text = if (viewModel.hasLocationPermission) "Permission Approved" else "Request Permission")
-        }
+        Text(text = if (viewModel.hasLocationPermission) "Location Permission granted" else "Request location permission")
     }
 }
 
 @Composable
-fun Greeting(name: String, viewModel: LocationPermissionViewModel, navController: NavController) {
+fun NotificationButton(viewModel: PermissionViewModel) {
+
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        viewModel.updateNotificationPermission(isGranted)
+    }
+    Button(
+        onClick = {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        },
+        enabled = !viewModel.hasNotificationPermission
+    ) {
+        Text(text = if (viewModel.hasNotificationPermission) "Notification permission approved" else "Request notification permission")
+    }
+}
+
+@Composable
+fun MainScreen(viewModel: PermissionViewModel, navController: NavController) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -113,11 +125,17 @@ fun Greeting(name: String, viewModel: LocationPermissionViewModel, navController
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-
         Text(
-            text = "Hello $name!",
+            "In order for the app to function properly, you need to grant the following permissions:\n" +
+                    "1. Location permission\n" +
+                    "2. Post notification permission"
         )
-        RequestLocationPermissionScreen(viewModel)
+        Spacer(Modifier.height(10.dp))
+        LocationButton(viewModel)
+        Spacer(Modifier.height(10.dp))
+        NotificationButton(viewModel)
+        Spacer(Modifier.height(10.dp))
+
         Button(
             enabled = viewModel.hasLocationPermission,
             onClick = {
@@ -128,7 +146,7 @@ fun Greeting(name: String, viewModel: LocationPermissionViewModel, navController
             Text(text = "Record")
         }
         Button(
-            enabled = viewModel.hasLocationPermission,
+            enabled = viewModel.hasLocationPermission and viewModel.hasNotificationPermission,
             onClick = {
                 navController.navigate("play")
             },
@@ -137,8 +155,9 @@ fun Greeting(name: String, viewModel: LocationPermissionViewModel, navController
             Text(text = "Play")
         }
         Button(
-            enabled = viewModel.hasLocationPermission,
-            onClick = {},
+            onClick = {
+                navController.navigate("settings")
+            },
             modifier = Modifier.padding(top = 20.dp)
         ) {
             Text(text = "Settings")
@@ -189,9 +208,8 @@ fun InputDialog(onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
 @Composable
 fun GreetingPreview() {
     FakeMoveTheme {
-        Greeting(
-            "Preview",
-            viewModel = LocationPermissionViewModel(),
+        MainScreen(
+            viewModel = PermissionViewModel(),
             navController = rememberNavController()
         )
     }

@@ -1,6 +1,10 @@
 package com.silas.fake.move
 
-import LatLng
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
+import android.location.LocationManager
+import android.os.Build
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -43,6 +47,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import kotlinx.coroutines.launch
 import java.io.File
@@ -53,7 +58,6 @@ fun LocationList(navController: NavController, viewModel: LocationViewModel) {
     val context = LocalContext.current
     val list = remember { mutableStateListOf<File>() }
 
-//    val list = List(20) { "Item #$it" }
     val coroutineScope = rememberCoroutineScope()
 
     var expandedIndex by remember { mutableIntStateOf(-1) }
@@ -91,91 +95,108 @@ fun LocationList(navController: NavController, viewModel: LocationViewModel) {
                     .padding(paddingValues)
             ) {
 
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                if (list.isEmpty()) {
+                    Text(
+                        fontSize = 24.sp,
+                        color = Color.Red,
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .padding(20.dp),
+                        text = "No record found, you should record the routes first"
+                    )
+                } else {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
 
-                    ) {
-                    itemsIndexed(list) { index, item ->
+                        ) {
+                        itemsIndexed(list) { index, item ->
 
-                        val interactionSource = remember { MutableInteractionSource() }
-                        var isPressed by remember { mutableStateOf(false) }
+                            val interactionSource = remember { MutableInteractionSource() }
+                            var isPressed by remember { mutableStateOf(false) }
 
-                        LaunchedEffect(interactionSource) {
-                            interactionSource.interactions.collect { interaction ->
-                                when (interaction) {
-                                    is PressInteraction.Press -> isPressed = true
-                                    is PressInteraction.Release, is PressInteraction.Cancel -> isPressed =
-                                        false
+                            LaunchedEffect(interactionSource) {
+                                interactionSource.interactions.collect { interaction ->
+                                    when (interaction) {
+                                        is PressInteraction.Press -> isPressed = true
+                                        is PressInteraction.Release, is PressInteraction.Cancel -> isPressed =
+                                            false
+                                    }
                                 }
                             }
-                        }
 
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(60.dp)
-                                .background(if (isPressed) Color.LightGray else Color.White)
-                                .combinedClickable(
-                                    interactionSource = interactionSource,
-                                    indication = rememberRipple(),
-                                    onClick = {
-                                        expandedIndex = index
-                                    },
-                                )
-                                .padding(8.dp),
-
-                            ) {
-                            Row(
+                            Box(
                                 modifier = Modifier
-                                    .fillMaxSize()
+                                    .fillMaxWidth()
+                                    .height(60.dp)
+                                    .background(if (isPressed) Color.LightGray else Color.White)
+                                    .combinedClickable(
+                                        interactionSource = interactionSource,
+                                        indication = rememberRipple(),
+                                        onClick = {
+                                            expandedIndex = index
+                                        },
+                                    )
                                     .padding(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(text = item.name)
-                                if (expandedIndex == index) {
-                                    DropdownMenu(
-                                        expanded = true,
-                                        onDismissRequest = { expandedIndex = -1 }
-                                    ) {
-                                        DropdownMenuItem(
-                                            onClick = {
-                                                coroutineScope.launch {
-                                                    expandedIndex = -1
-                                                }
-                                            },
-                                            text = { Text("Play") }
-                                        )
-                                        DropdownMenuItem(
-                                            onClick = {
-                                                coroutineScope.launch {
-                                                    expandedIndex = -1
-                                                    viewModel.setItemList(
-                                                        MyLocationManager.loadFromFile(
+
+                                ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(text = item.name)
+                                    if (expandedIndex == index) {
+                                        DropdownMenu(
+                                            expanded = true,
+                                            onDismissRequest = { expandedIndex = -1 }
+                                        ) {
+                                            DropdownMenuItem(
+                                                onClick = {
+
+                                                    coroutineScope.launch {
+                                                        expandedIndex = -1
+                                                        val locationList =
+                                                            MyLocationManager.loadFromFile(item)
+                                                        LocationUtils.playLocation2(
                                                             context,
-                                                            item
-                                                        ).map {
-                                                            LatLng(it.latitude, it.longitude)
-                                                        }
-                                                    )
-                                                    navController.navigate("drawLocations")
-                                                }
-                                            },
-                                            text = { Text("View") }
-                                        )
-                                        DropdownMenuItem(
-                                            onClick = {
-                                                coroutineScope.launch {
-                                                    expandedIndex = -1
-                                                    selectedIndex = index
-                                                    actionType = "Delete"
-                                                    showConfirmationDialog = true
-                                                }
-                                            },
-                                            text = { Text("Delete") }
-                                        )
+                                                            viewModel,
+                                                            locationList
+                                                        )
+//                                                        viewModel.clear()
+//                                                        navController.navigate("drawLocations")
+                                                    }
+
+                                                },
+                                                text = { Text("Play") }
+                                            )
+                                            DropdownMenuItem(
+                                                onClick = {
+                                                    coroutineScope.launch {
+                                                        expandedIndex = -1
+                                                        viewModel.setItemList(
+                                                            MyLocationManager.loadFromFile(item)
+                                                        )
+                                                        navController.navigate("drawLocations")
+                                                    }
+                                                },
+                                                text = { Text("View") }
+                                            )
+                                            DropdownMenuItem(
+                                                onClick = {
+                                                    coroutineScope.launch {
+                                                        expandedIndex = -1
+                                                        selectedIndex = index
+                                                        actionType = "Delete"
+                                                        showConfirmationDialog = true
+                                                    }
+                                                },
+                                                text = { Text("Delete") }
+                                            )
+                                        }
                                     }
                                 }
                             }

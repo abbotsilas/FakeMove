@@ -14,27 +14,31 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import kotlinx.coroutines.launch
@@ -51,7 +55,12 @@ fun RecordingScreen(navController: NavController, viewModel: LocationViewModel) 
     var showDialog by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
+    var selectedTabIndex by remember { mutableIntStateOf(0) }
+    val boxSize: MutableState<IntSize> = remember { mutableStateOf(IntSize(0, 0)) }
 
+    LaunchedEffect(Unit) {
+        viewModel.clear()
+    }
 
     Scaffold(
         topBar = {
@@ -101,22 +110,68 @@ fun RecordingScreen(navController: NavController, viewModel: LocationViewModel) 
                     """.trimIndent().lines().joinToString(separator = " ")
                     )
 
-                    HorizontalDivider(
-                        thickness = 1.dp,
-                        color = Color.Gray
-                    )
-                    Text(
-                        text = text,
-                        softWrap = false,
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxSize()
-                            .padding(16.dp)
-                            .align(Alignment.Start)
-                            .verticalScroll(scrollState)
-                            .horizontalScroll(horizontalScroll)
-                    )
+                    TabRow(
+                        selectedTabIndex = selectedTabIndex,
+                        modifier = Modifier.padding(8.dp)
+                    ) {
+                        Tab(
+                            selected = selectedTabIndex == 0,
+                            onClick = {
+                                selectedTabIndex = 0
+                            }
+                        ) {
+                            Text(text = "Log")
+                        }
+                        Tab(
+                            selected = selectedTabIndex == 1,
+                            onClick = {
+                                selectedTabIndex = 1
+                            }
+                        ) {
+                            Text(text = "Map")
+                        }
+                    }
+                    when (selectedTabIndex) {
+                        0 -> {
+                            Text(
+                                text = text,
+                                softWrap = false,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxSize()
+                                    .padding(16.dp)
+                                    .align(Alignment.Start)
+                                    .verticalScroll(scrollState)
+                                    .horizontalScroll(horizontalScroll)
+                            )
+                        }
 
+                        1 -> {
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxSize()
+                                    .padding(16.dp)
+                                    .onSizeChanged {
+                                        boxSize.value = it
+                                    }
+                                    .align(Alignment.Start)
+                            ) {
+                                val size = boxSize.value;
+                                if (size.height == 0 || size.width == 0) {
+                                    Text("Waiting...")
+                                } else {
+                                    DrawLocationView(
+                                        viewModel,
+                                        size.width.toFloat(),
+                                        size.height.toFloat()
+                                    )
+
+                                }
+                            }
+
+                        }
+                    }
 
                     Button(
                         enabled = !recording,
@@ -126,6 +181,7 @@ fun RecordingScreen(navController: NavController, viewModel: LocationViewModel) 
                                     override fun onLocationChanged(location: LocationData) {
                                         text += "\n$location"
                                         list.add(location)
+                                        viewModel.addItem(location)
                                     }
                                 })
                             text += "\nstart success: $success"
@@ -145,6 +201,7 @@ fun RecordingScreen(navController: NavController, viewModel: LocationViewModel) 
                     }
                     Spacer(modifier = Modifier.height(16.dp))
                     Button(
+                        enabled = list.isNotEmpty(),
                         onClick = {
                             showDialog = true
                         }

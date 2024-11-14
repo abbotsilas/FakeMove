@@ -5,11 +5,17 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 
-class LocationPermissionViewModel : ViewModel() {
+class PermissionViewModel : ViewModel() {
     var hasLocationPermission by mutableStateOf(false)
         private set
+    var hasNotificationPermission by mutableStateOf(false)
+        private set
 
-    fun updatePermission(hasPermission: Boolean) {
+    fun updateLocationPermission(hasPermission: Boolean) {
         hasLocationPermission = hasPermission
+    }
+
+    fun updateNotificationPermission(hasPermission: Boolean) {
+        hasNotificationPermission = hasPermission
     }
 }
