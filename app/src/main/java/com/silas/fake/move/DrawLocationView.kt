@@ -19,21 +19,24 @@ import kotlin.math.min
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DrawLocationView(viewModel: LocationViewModel, widthPx: Float, heightPx: Float) {
+fun DrawLocationView(viewModel: LocationViewModel, widthPx: Float, heightPx: Float, baseList: List<LocationData>? = null) {
     var computed by remember { mutableStateOf(false) }
     var centerLatLng by remember { mutableStateOf<LatLng>(SimpleLatLng(0.0, 0.0)) }
     var initialScale by remember { mutableFloatStateOf(0f) }
-    val latLngList = viewModel.itemList
+    val latLngList = viewModel.locationList
 
     println("DrawLocationView.widthPx=$widthPx, heightPx=$heightPx")
 
     LaunchedEffect(Unit) {
         computed = true
-        if (latLngList.isNotEmpty()) {
-            println("DrawLocationView.LaunchedEffect.enter")
+        if (!baseList.isNullOrEmpty()) {
+            centerLatLng = calculateCenter(baseList)
+            initialScale = calculateAdaptiveScale(baseList, widthPx, heightPx)
+            println("XXXX.initialScale.baseList=$initialScale")
+        } else if (latLngList.isNotEmpty()) {
             centerLatLng = calculateCenter(latLngList)
             initialScale = calculateAdaptiveScale(latLngList, widthPx, heightPx)
-            println("XXXX.initialScale=$initialScale")
+            println("XXXX.initialScale.latLngList=$initialScale")
         } else {
             println("DrawLocationView.LaunchedEffect.lost")
         }
@@ -45,7 +48,8 @@ fun DrawLocationView(viewModel: LocationViewModel, widthPx: Float, heightPx: Flo
             AutoCenteredAndConstrainedPath(
                 centerLatLng,
                 initialScale,
-                viewModel
+                viewModel,
+                baseList
             )
         } else {
             Text("Computing...")
@@ -71,19 +75,19 @@ private fun calculateAdaptiveScale(
     var latRange = latitudes.maxOrNull()!! - latitudes.minOrNull()!!
     var lonRange = longitudes.maxOrNull()!! - longitudes.minOrNull()!!
 
-    if (latRange < 0.000001) {
-        latRange = 0.000001
+    if (latRange < 0.00005) {
+        latRange = 0.00005
     }
-    if (lonRange < 0.000001) {
-        lonRange = 0.000001
+    if (lonRange < 0.00005) {
+        lonRange = 0.00005
     }
 
-    val maxLatDistance = latRange * 1113200
-    val maxLonDistance = lonRange * 1113200
+    val maxLatDistance = latRange * DRAW_SCALE_FACTOR
+    val maxLonDistance = lonRange * DRAW_SCALE_FACTOR
 
     val scaleX = screenWidth / maxLonDistance.toFloat()
     val scaleY = screenHeight / maxLatDistance.toFloat()
 
-    var scale = min(scaleX, scaleY) * 0.9f
+    val scale = min(scaleX, scaleY) * 0.9f
     return scale
 }

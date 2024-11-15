@@ -6,6 +6,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -44,6 +45,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        ConfigInfo.loadIfNeed(this)
         val viewModel = PermissionViewModel()
         viewModel.updateNotificationPermission(PermissionUtils.hasNotificationPermission(this))
         viewModel.updateLocationPermission(PermissionUtils.hasLocationPermission(this))
@@ -52,6 +54,7 @@ class MainActivity : ComponentActivity() {
                 MyAppNavigation(viewModel)
             }
         }
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
     }
 }
 
@@ -74,6 +77,7 @@ fun MyAppNavigation(viewModel: PermissionViewModel) {
         composable("play") { LocationList(navController, sharedLocationViewModel) }
         composable("drawLocations") { DrawLocationScreen(navController, sharedLocationViewModel) }
         composable("settings") { SettingScreen(navController) }
+        composable("replay") { ReplayLocationScreen(navController, sharedLocationViewModel) }
     }
 }
 

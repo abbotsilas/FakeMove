@@ -59,7 +59,7 @@ fun RecordingScreen(navController: NavController, viewModel: LocationViewModel) 
     val boxSize: MutableState<IntSize> = remember { mutableStateOf(IntSize(0, 0)) }
 
     LaunchedEffect(Unit) {
-        viewModel.clear()
+        viewModel.clearLocationList()
     }
 
     Scaffold(
@@ -180,11 +180,16 @@ fun RecordingScreen(navController: NavController, viewModel: LocationViewModel) 
                                 MyLocationManager.startRecord(context, object : LocationCallback {
                                     override fun onLocationChanged(location: LocationData) {
                                         text += "\n$location"
+                                        if (text.length > 10000) {
+                                            text = text.substring(text.length - 10000)
+                                        }
                                         list.add(location)
-                                        viewModel.addItem(location)
+                                        viewModel.addLocationItem(location)
                                     }
                                 })
-                            text += "\nstart success: $success"
+                            text = "start success: $success"
+                            list.clear()
+                            viewModel.clearLocationList()
                             recording = success
                         }) {
                         Text(text = "Start")

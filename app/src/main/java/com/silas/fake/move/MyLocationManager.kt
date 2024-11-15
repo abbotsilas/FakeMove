@@ -1,18 +1,14 @@
 package com.silas.fake.move
 
 import LatLng
-import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
-import android.os.Build
 import android.util.Log
 import android.widget.Toast
-import androidx.core.content.ContextCompat
 import java.io.File
 import java.io.FileWriter
 import kotlin.math.PI
@@ -20,10 +16,10 @@ import kotlin.math.abs
 import kotlin.math.atan
 import kotlin.math.atan2
 import kotlin.math.cos
-import kotlin.math.pow
 import kotlin.math.sin
 import kotlin.math.sqrt
 import kotlin.math.tan
+
 
 data class LocationData(
     override val latitude: Double,
@@ -115,7 +111,7 @@ object LocationUtils {
         val ttt = Thread {
             try {
                 for (item in list) {
-                    viewModel.addItem(item)
+                    viewModel.addLocationItem(item)
 
                     currentLocationManager?.apply {
                         val mockLocation = Location(provider).apply {
@@ -156,71 +152,81 @@ object LocationUtils {
         return longitudeInMeters
     }
 
-    fun vincenty(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
+    fun distance(lat1a: Double, lon1a: Double, lat2a: Double, lon2a: Double): Double {
+        val MAXITERS = 20
+        val lat1 = lat1a * 0.017453292519943295
+        val lat2 = lat2a * 0.017453292519943295
+        val lon1 = lon1a * 0.017453292519943295
+        val lon2 = lon2a * 0.017453292519943295
         val a = 6378137.0
-        val f = 1 / 298.257223563
-        val b = (1 - f) * a
-
-        val φ1 = Math.toRadians(lat1)
-        val λ1 = Math.toRadians(lon1)
-        val φ2 = Math.toRadians(lat2)
-        val λ2 = Math.toRadians(lon2)
-
-        val L = λ2 - λ1
-        val U1 = atan((1 - f) * tan(φ1))
-        val U2 = atan((1 - f) * tan(φ2))
-
-        val sinU1 = sin(U1)
+        val b = 6356752.3142
+        val f = (a - b) / a
+        val aSqMinusBSqOverBSq = (a * a - b * b) / (b * b)
+        val L = lon2 - lon1
+        var A = 0.0
+        val U1 = atan((1.0 - f) * tan(lat1))
+        val U2 = atan((1.0 - f) * tan(lat2))
         val cosU1 = cos(U1)
-        val sinU2 = sin(U2)
         val cosU2 = cos(U2)
+        val sinU1 = sin(U1)
+        val sinU2 = sin(U2)
+        val cosU1cosU2 = cosU1 * cosU2
+        val sinU1sinU2 = sinU1 * sinU2
+        var sigma = 0.0
+        var deltaSigma = 0.0
+        var cosSqAlpha = 0.0
+        var cos2SM = 0.0
+        var cosSigma = 0.0
+        var sinSigma = 0.0
+        var cosLambda = 0.0
+        var sinLambda = 0.0
+        var lambda = L
 
-        var sinσ: Double
-        var cosσ: Double
-        var σ: Double
-        var sinα: Double
-        var cos2α: Double
-        var cos2σm: Double
-        var C: Double
+        for (iter in 0 until MAXITERS) {
+            val lambdaOrig = lambda
+            cosLambda = cos(lambda)
+            sinLambda = sin(lambda)
+            val t1 = cosU2 * sinLambda
+            val t2 = cosU1 * sinU2 - sinU1 * cosU2 * cosLambda
+            val sinSqSigma = t1 * t1 + t2 * t2
+            sinSigma = sqrt(sinSqSigma)
+            cosSigma = sinU1sinU2 + cosU1cosU2 * cosLambda
+            sigma = atan2(sinSigma, cosSigma)
+            val sinAlpha = if (sinSigma == 0.0) 0.0 else cosU1cosU2 * sinLambda / sinSigma
+            cosSqAlpha = 1.0 - sinAlpha * sinAlpha
+            cos2SM = if (cosSqAlpha == 0.0) 0.0 else cosSigma - 2.0 * sinU1sinU2 / cosSqAlpha
+            val uSquared = cosSqAlpha * aSqMinusBSqOverBSq
+            A =
+                1.0 + uSquared / 16384.0 * (4096.0 + uSquared * (-768.0 + uSquared * (320.0 - 175.0 * uSquared)))
+            val B =
+                uSquared / 1024.0 * (256.0 + uSquared * (-128.0 + uSquared * (74.0 - 47.0 * uSquared)))
+            val C = f / 16.0 * cosSqAlpha * (4.0 + f * (4.0 - 3.0 * cosSqAlpha))
+            val cos2SMSq = cos2SM * cos2SM
+            deltaSigma =
+                B * sinSigma * (cos2SM + B / 4.0 * (cosSigma * (-1.0 + 2.0 * cos2SMSq) - B / 6.0 * cos2SM * (-3.0 + 4.0 * sinSigma * sinSigma) * (-3.0 + 4.0 * cos2SMSq)))
+            lambda =
+                L + (1.0 - C) * f * sinAlpha * (sigma + C * sinSigma * (cos2SM + C * cosSigma * (-1.0 + 2.0 * cos2SM * cos2SM)))
+            val delta = (lambda - lambdaOrig) / lambda
+            if (abs(delta) < 1.0E-12) {
+                break
+            }
+        }
 
-        var λ = L
-        var iterCount = 0
-        do {
-            val sinλ = sin(λ)
-            val cosλ = cos(λ)
-            sinσ = sqrt((cosU2 * sinλ).pow(2) + (cosU1 * sinU2 - sinU1 * cosU2 * cosλ).pow(2))
-            cosσ = sinU1 * sinU2 + cosU1 * cosU2 * cosλ
-            σ = atan2(sinσ, cosσ)
-
-            sinα = cosU1 * cosU2 * sinλ / sinσ
-            cos2α = 1 - sinα.pow(2)
-            cos2σm = cosσ - 2 * sinU1 * sinU2 / cos2α
-
-            C = f / 16 * cos2α * (4 + f * (4 - 3 * cos2α))
-
-            λ =
-                L + (1 - C) * f * sinα * (σ + C * sinσ * (cos2σm + C * cosσ * (-1 + 2 * cos2σm.pow(2))))
-        } while (abs(λ) > 1e-12 && iterCount++ < 100)
-
-        val u2 = cos2α * (a.pow(2) - b.pow(2)) / (b.pow(2))
-        val A = 1 + u2 / 16384 * (4096 + u2 * (-768 + u2 * (320 - 175 * u2)))
-        val B = u2 / 1024 * (256 + u2 * (-128 + u2 * (74 - 47 * u2)))
-
-        val deltaσ =
-            B * sinσ * (cos2σm + B / 4 * (cosσ * (-1 + 2 * cos2σm.pow(2))) - B / 6 * cos2σm * (-3 + 4 * sinσ.pow(
-                2
-            )) * (-3 + 4 * cos2σm.pow(2)))
-
-        return b * A * (σ - deltaσ)
+        val distance = (b * A * (sigma - deltaSigma))
+        return distance
     }
 
     fun totalDistance(latLngList: List<LatLng>): Double {
         var totalDistance = 0.0
         for (i in 0 until latLngList.size - 1) {
-            totalDistance += vincenty(
+            var dis = distance(
                 latLngList[i].latitude, latLngList[i].longitude,
                 latLngList[i + 1].latitude, latLngList[i + 1].longitude
             )
+            if (dis.isNaN()) {
+                dis = 0.0
+            }
+            totalDistance += dis
         }
         return totalDistance
     }

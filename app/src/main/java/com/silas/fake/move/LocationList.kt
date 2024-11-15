@@ -1,10 +1,5 @@
 package com.silas.fake.move
 
-import android.Manifest
-import android.content.Context
-import android.content.pm.PackageManager
-import android.location.LocationManager
-import android.os.Build
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -62,11 +57,16 @@ fun LocationList(navController: NavController, viewModel: LocationViewModel) {
 
     var expandedIndex by remember { mutableIntStateOf(-1) }
 
-    var showConfirmationDialog by remember { mutableStateOf(false) }
-    var selectedIndex by remember { mutableIntStateOf(-1) }
-    var actionType by remember { mutableStateOf("") }
+    val confirmModel = remember {
+        ConfirmDialogViewModel().apply {
+            title = "Confirm Delete"
+            message = "Are you sure to delete this record?"
+        }
+    }
 
     LaunchedEffect(Unit) { list.addAll(MyLocationManager.listFiles(context)) }
+
+    ConfirmDialog(confirmModel)
 
     Scaffold(
         topBar = {
@@ -159,15 +159,10 @@ fun LocationList(navController: NavController, viewModel: LocationViewModel) {
 
                                                     coroutineScope.launch {
                                                         expandedIndex = -1
-                                                        val locationList =
-                                                            MyLocationManager.loadFromFile(item)
-                                                        LocationUtils.playLocation2(
-                                                            context,
-                                                            viewModel,
-                                                            locationList
-                                                        )
-//                                                        viewModel.clear()
-//                                                        navController.navigate("drawLocations")
+                                                        val locationList = MyLocationManager.loadFromFile(item)
+                                                        viewModel.setLocationList(locationList)
+                                                        viewModel.traceLast = true
+                                                        navController.navigate("replay")
                                                     }
 
                                                 },
@@ -177,7 +172,8 @@ fun LocationList(navController: NavController, viewModel: LocationViewModel) {
                                                 onClick = {
                                                     coroutineScope.launch {
                                                         expandedIndex = -1
-                                                        viewModel.setItemList(
+                                                        viewModel.traceLast = false
+                                                        viewModel.setLocationList(
                                                             MyLocationManager.loadFromFile(item)
                                                         )
                                                         navController.navigate("drawLocations")
@@ -189,9 +185,15 @@ fun LocationList(navController: NavController, viewModel: LocationViewModel) {
                                                 onClick = {
                                                     coroutineScope.launch {
                                                         expandedIndex = -1
-                                                        selectedIndex = index
-                                                        actionType = "Delete"
-                                                        showConfirmationDialog = true
+                                                        val file = list[index]
+                                                        confirmModel.message = "Are you sure to delete '${file.name}'?"
+                                                        confirmModel.okCallback = {
+                                                            coroutineScope.launch {
+                                                                file.delete()
+                                                                list.remove(file)
+                                                            }
+                                                        }
+                                                        confirmModel.showConfirmationDialog = true
                                                     }
                                                 },
                                                 text = { Text("Delete") }
@@ -206,31 +208,4 @@ fun LocationList(navController: NavController, viewModel: LocationViewModel) {
             }
         }
     )
-
-    if (showConfirmationDialog) {
-        val file = list[selectedIndex]
-        AlertDialog(
-            onDismissRequest = { showConfirmationDialog = false },
-            title = { Text("Confirm $actionType") },
-            text = { Text("Are you sure you want to $actionType '${file.name}'?") },
-            confirmButton = {
-                TextButton(onClick = {
-                    coroutineScope.launch {
-                        file.delete()
-                        list.remove(file)
-                    }
-                    showConfirmationDialog = false
-                }) {
-                    Text("Confirm")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = {
-                    showConfirmationDialog = false
-                }) {
-                    Text("Cancel")
-                }
-            }
-        )
-    }
 }

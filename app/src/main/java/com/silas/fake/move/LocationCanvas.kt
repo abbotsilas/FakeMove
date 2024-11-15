@@ -1,23 +1,32 @@
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.Button
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.ViewModel
+import com.silas.fake.move.DRAW_SCALE_FACTOR
 import com.silas.fake.move.LocationData
 import com.silas.fake.move.LocationUtils
 import com.silas.fake.move.LocationViewModel
+import com.silas.fake.move.round
 import kotlin.math.pow
 import kotlin.math.roundToInt
 
@@ -26,141 +35,173 @@ interface LatLng {
     val longitude: Double
 }
 
+data class OriginalInfo(val baseList: List<LocationData>, val progress: Double)
+
 data class SimpleLatLng(override val latitude: Double, override val longitude: Double) : LatLng
+
+private class CanvasViewModel(val centerLatLng: LatLng, val scale: Float, tract: Boolean = false) : ViewModel() {
+    var zoomScale by mutableFloatStateOf(1f)
+    var offsetX by mutableFloatStateOf(0f)
+    var offsetY by mutableFloatStateOf(0f)
+    var trackLast by mutableStateOf(tract)
+}
+
 
 @Composable
 fun AutoCenteredAndConstrainedPath(
     centerLatLng: LatLng,
     initialScale: Float,
-    viewModel: LocationViewModel
+    viewModel: LocationViewModel,
+    baseList: List<LocationData>? = null
 ) {
-
-    val latLngList = viewModel.itemList
-    val scale by remember { mutableFloatStateOf(initialScale) }
-    var zoomScale by remember { mutableFloatStateOf(1f) }
-    var offsetX by remember { mutableFloatStateOf(0f) }
-    var offsetY by remember { mutableFloatStateOf(0f) }
-    var trackLast by remember { mutableStateOf(true) }
-
-    if (latLngList.isEmpty()) {
+    val locationList = viewModel.locationList
+    if (locationList.isEmpty()) {
         Text("No location to draw...")
         return
     }
-
+    val canvasModel = remember { CanvasViewModel(centerLatLng, initialScale, viewModel.traceLast) }
     Box(
         modifier = Modifier
             .fillMaxSize()
             .pointerInput(Unit) {
                 detectTransformGestures { centroid, pan, zoom, _ ->
-                    trackLast = false
-                    zoomScale *= zoom
-                    val newOffsetX = (centroid.x - (centroid.x - offsetX) * zoom)
-                    val newOffsetY = (centroid.y - (centroid.y - offsetY) * zoom)
-                    offsetX = newOffsetX + pan.x
-                    offsetY = newOffsetY + pan.y
-                    println("XXXX.zoomScale=$zoomScale")
+                    canvasModel.trackLast = false
+                    canvasModel.zoomScale *= zoom
+                    val newOffsetX = (centroid.x - (centroid.x - canvasModel.offsetX) * zoom)
+                    val newOffsetY = (centroid.y - (centroid.y - canvasModel.offsetY) * zoom)
+                    canvasModel.offsetX = newOffsetX + pan.x
+                    canvasModel.offsetY = newOffsetY + pan.y
+                    println("XXXX.zoomScale=${canvasModel.zoomScale}")
                 }
             }
     ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val canvasWidth = size.width
-            val canvasHeight = size.height
 
-            if (trackLast) {
-                val internalX: Float
-                val internalY: Float
-                val last = latLngList.last()
-                internalX = canvasWidth / 2 - (lonToX(
-                    last.longitude,
-                    scale,
-                    centerLatLng.longitude,
-                    canvasWidth
-                ) * zoomScale + offsetX)
-                internalY = canvasHeight / 2 - (latToY(
-                    last.latitude,
-                    scale,
-                    centerLatLng.latitude,
-                    canvasHeight
-                ) * zoomScale + offsetY)
-                offsetX += internalX
-                offsetY += internalY
+        ShowInfo(baseList?.let {
+            val progress = viewModel.matchedProgress
+            if (progress.isNaN()) {
+                return
+            } else {
+                OriginalInfo(it, progress)
             }
-            fun longitudeToX(longitude: Double): Float {
-                val x = lonToX(longitude, scale, centerLatLng.longitude, canvasWidth)
-                return x * zoomScale + offsetX
-            }
-
-            fun latitudeToY(latitude: Double): Float {
-                val y = latToY(latitude, scale, centerLatLng.latitude, canvasHeight)
-                return y * zoomScale + offsetY
-            }
-
-
-            if (canvasWidth > 0 && canvasHeight > 0) {
-
-                val path = Path()
-
-                val startX = longitudeToX(latLngList[0].longitude)
-                val startY = latitudeToY(latLngList[0].latitude)
-                path.moveTo(startX, startY)
-                path.lineTo(startX + 1, startY + 1)
-                var lastX = startX
-                var lastY = startY
-                for (i in 1 until latLngList.size) {
-                    val pointX = longitudeToX(latLngList[i].longitude)
-                    val pointY = latitudeToY(latLngList[i].latitude)
-                    path.lineTo(pointX, pointY)
-                    lastX = pointX
-                    lastY = pointY
-                }
-
-                drawPath(
-                    path = path,
-                    color = Color.Blue,
-                    style = Stroke(
-                        width = 3.dp.toPx(),
-                        cap = StrokeCap.Round,
-                        join = StrokeJoin.Round
-                    )
-                )
-                val theSize = 6.dp.toPx()
-                drawCircle(
-                    color = Color.Red,
-                    radius = theSize,
-                    center = Offset(startX, startY)
-                )
-                drawCircle(
-                    color = Color.Green,
-                    radius = theSize,
-                    center = Offset(lastX, lastY)
-                )
-            }
-
+        }, locationList)
+        if (baseList != null) {
+            CanvasInfo(canvasModel, baseList, false, Color.LightGray, Color.LightGray, Color.LightGray)
         }
-        var time: Long? = null
-        val first = latLngList.first()
-        val last = latLngList.last()
-        if (first is LocationData && last is LocationData) {
-            time = last.time - first.time
-        }
-        ShowInfo(latLngList.size, LocationUtils.totalDistance(latLngList), time)
-        Button(
+        CanvasInfo(canvasModel, locationList, true, Color.Red, Color.Green)
+        Box(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(bottom = 20.dp, end = 20.dp),
-            onClick = {
-                trackLast = true
-            }
+                .padding(20.dp)
         ) {
-            Text("Track Last")
+            IconButton(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .border(1.dp, Color.LightGray, CircleShape)
+                    .size(40.dp),
+                onClick = {
+                    canvasModel.trackLast = true
+                }
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.LocationOn,
+                    contentDescription = "Custom Icon",
+                    modifier = Modifier.size(24.dp),
+                )
+            }
         }
     }
 
 }
 
+@Composable
+private fun CanvasInfo(
+    canvasModel: CanvasViewModel,
+    latLngList: List<LocationData>,
+    shouldTrack: Boolean = false,
+    startColor: Color = Color.Red,
+    endColor: Color = Color.Green,
+    lineColor: Color = Color.Blue
+) {
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        val canvasWidth = size.width
+        val canvasHeight = size.height
+
+        if (shouldTrack && canvasModel.trackLast) {
+            val internalX: Float
+            val internalY: Float
+            val last = latLngList.last()
+            internalX = canvasWidth / 2 - (lonToX(
+                last.longitude,
+                canvasModel.scale,
+                canvasModel.centerLatLng.longitude,
+                canvasWidth
+            ) * canvasModel.zoomScale + canvasModel.offsetX)
+            internalY = canvasHeight / 2 - (latToY(
+                last.latitude,
+                canvasModel.scale,
+                canvasModel.centerLatLng.latitude,
+                canvasHeight
+            ) * canvasModel.zoomScale + canvasModel.offsetY)
+            canvasModel.offsetX += internalX
+            canvasModel.offsetY += internalY
+        }
+        fun longitudeToX(longitude: Double): Float {
+            val x = lonToX(longitude, canvasModel.scale, canvasModel.centerLatLng.longitude, canvasWidth)
+            return x * canvasModel.zoomScale + canvasModel.offsetX
+        }
+
+        fun latitudeToY(latitude: Double): Float {
+            val y = latToY(latitude, canvasModel.scale, canvasModel.centerLatLng.latitude, canvasHeight)
+            return y * canvasModel.zoomScale + canvasModel.offsetY
+        }
+
+
+        if (canvasWidth > 0 && canvasHeight > 0) {
+
+            val path = Path()
+
+            val startX = longitudeToX(latLngList[0].longitude)
+            val startY = latitudeToY(latLngList[0].latitude)
+            path.moveTo(startX, startY)
+            path.lineTo(startX + 1, startY + 1)
+            var lastX = startX
+            var lastY = startY
+            for (i in 1 until latLngList.size) {
+                val pointX = longitudeToX(latLngList[i].longitude)
+                val pointY = latitudeToY(latLngList[i].latitude)
+                path.lineTo(pointX, pointY)
+                lastX = pointX
+                lastY = pointY
+            }
+
+            drawPath(
+                path = path,
+                color = lineColor,
+                style = Stroke(
+                    width = 3.dp.toPx(),
+                    cap = StrokeCap.Round,
+                    join = StrokeJoin.Round
+                )
+            )
+            val theSize = 6.dp.toPx()
+            drawCircle(
+                color = startColor,
+                radius = theSize,
+                center = Offset(startX, startY)
+            )
+            drawCircle(
+                color = endColor,
+                radius = theSize,
+                center = Offset(lastX, lastY)
+            )
+        }
+
+    }
+}
+
 
 @Composable
-fun ShowInfo(dotCount: Int, distance: Double, time: Long?) {
+fun ShowInfo(originalInfo: OriginalInfo?, locationList: List<LocationData>) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -168,11 +209,27 @@ fun ShowInfo(dotCount: Int, distance: Double, time: Long?) {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.Start,
     ) {
-        if (time != null) {
-            Text("UsedTime: ${time.toTime()}")
+        val time = locationList.last().time - locationList.first().time
+        Text("SpentTime: ${time.toTime()}")
+        val currentDistance = LocationUtils.totalDistance(locationList)
+        var distanceText = ""
+        if (originalInfo != null) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Progress: ${(originalInfo.progress * 100).round(2)}%")
+                LinearProgressIndicator(
+                    modifier = Modifier
+                        .height(14.dp)
+                        .weight(1f)
+                        .padding(4.dp),
+                    progress = { originalInfo.progress.toFloat() }
+                )
+            }
         }
-        Text(text = "DotCount: $dotCount")
-        Text(text = "Distance: ${distance.round(2)} m")
+        Text(text = "Distance: ${currentDistance.round(2)} m")
         Row(
             modifier = Modifier.defaultMinSize(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -200,6 +257,7 @@ fun ShowInfo(dotCount: Int, distance: Double, time: Long?) {
             )
         }
     }
+
 }
 
 private fun Long.toTime(): String {
@@ -215,19 +273,13 @@ private fun Long.toTime(): String {
     sb.append(seconds)
     return sb.toString()
 }
-
-private fun Double.round(i: Int): String {
-    val factor = 10.0.pow(i.toDouble())
-    return ((this * factor).roundToInt() / factor).toString()
-}
-
 fun lonToX(longitude: Double, scale: Float, centerLongitude: Double, canvasWidth: Float): Float {
-    val xOffset = (longitude - centerLongitude) * 10000 * scale
+    val xOffset = (longitude - centerLongitude) * DRAW_SCALE_FACTOR * scale
     return (canvasWidth / 2) + xOffset.toFloat()
 }
 
 fun latToY(latitude: Double, scale: Float, centerLatitude: Double, canvasHeight: Float): Float {
-    val yOffset = -(latitude - centerLatitude) * 10000 * scale
+    val yOffset = -(latitude - centerLatitude) * DRAW_SCALE_FACTOR * scale
     return (canvasHeight / 2) + yOffset.toFloat()
 }
 

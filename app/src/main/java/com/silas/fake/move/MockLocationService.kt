@@ -29,7 +29,6 @@ class MockLocationService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         startForegroundService()
-        startMockLocationUpdates()
         return START_STICKY
     }
 
@@ -61,59 +60,6 @@ class MockLocationService : Service() {
             .build()
 
         startForeground(1, notification)
-    }
-
-    @SuppressLint("WrongConstant")
-    private fun startMockLocationUpdates() {
-        val locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
-        locationJob = CoroutineScope(Dispatchers.IO).launch {
-            try {
-                locationManager.addTestProvider(
-                    provider,
-                    false,
-                    true,
-                    false,
-                    false,
-                    true,
-                    true,
-                    true,
-                    3,
-                    1
-                )
-                locationManager.setTestProviderEnabled(provider, true)
-                val list = MockLocations.list.map { it }.toList()
-                val gapTime = System.currentTimeMillis() - list[0].time
-                var index = 0
-                var currentLocation = list[index]
-                while (isActive) {
-                    val item = currentLocation
-                    val mockLocation = Location(provider).apply {
-                        latitude = item.latitude
-                        longitude = item.longitude
-                        accuracy = item.accuracy
-                        speed = item.speed
-                        bearing = item.bearing
-                        altitude = item.altitude
-                        time = System.currentTimeMillis()
-                        elapsedRealtimeNanos = System.nanoTime()
-                    }
-                    locationManager.setTestProviderLocation(provider, mockLocation)
-                    println("send mockLocation:${item}")
-                    delay(500)
-                    if (System.currentTimeMillis() - gapTime > currentLocation.time) {
-                        index++
-                    }
-                    if (index >= list.size - 1) {
-                        break;
-                    }
-                    currentLocation = list[index]
-                }
-            } catch (e: SecurityException) {
-                e.printStackTrace()
-            } finally {
-                locationManager.removeTestProvider(provider)
-            }
-        }
     }
 
     override fun onDestroy() {

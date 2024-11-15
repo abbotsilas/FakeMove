@@ -5,6 +5,26 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.content.ContextCompat
+import kotlin.math.pow
+import kotlin.math.roundToInt
+
+const val DRAW_SCALE_FACTOR = 111320
+
+fun Double.round(i: Int): String {
+    if (isNaN()) {
+        return "NaN"
+    }
+    val factor = 10.0.pow(i.toDouble())
+    return ((this * factor).roundToInt() / factor).toString()
+}
+
+fun Float.round(i: Int): String {
+    if (isNaN()) {
+        return "NaN"
+    }
+    val factor = 10.0.pow(i.toDouble())
+    return ((this * factor).roundToInt() / factor).toString()
+}
 
 object PermissionUtils {
     fun hasLocationPermission(context: Context): Boolean {
