@@ -21,8 +21,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -161,12 +161,11 @@ fun SettingScreen(navController: NavController) {
                         Text("Save")
                     }
                     Button(
-                        enabled = changed,
                         onClick = {
-                            changed = false
-                            speed = ConfigInfo.speed
-                            shakeMeters = ConfigInfo.shakeMeters
-                            postInterval = ConfigInfo.postInterval
+                            changed = true
+                            speed = 1.0f
+                            shakeMeters = 0.1f
+                            postInterval = 200
                         }) {
                         Text("Reset")
                     }
