@@ -1,6 +1,7 @@
 package com.silas.fake.move
 
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.Context
 import android.location.Location
 import android.location.LocationManager
@@ -25,7 +26,7 @@ class LocationPlayer(
     private val totalDistance = LocationUtils.totalDistance(baseList)
 
     @SuppressLint("WrongConstant")
-    fun start(): Boolean {
+    fun start(context: Activity): Boolean {
         val prepared = prepare()
         println("XXX.prepared=$prepared")
         if (!prepared) {
@@ -51,7 +52,9 @@ class LocationPlayer(
             } catch (_: Exception) {
                 // ignore
             } finally {
-                Toast.makeText(context, "Play finished!!!", Toast.LENGTH_LONG).show()
+                context.runOnUiThread {
+                    Toast.makeText(context, "Play finished!!!", Toast.LENGTH_LONG).show()
+                }
             }
 
         }

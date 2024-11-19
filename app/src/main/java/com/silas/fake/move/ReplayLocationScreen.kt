@@ -1,5 +1,6 @@
 package com.silas.fake.move
 
+import android.app.Activity
 import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
@@ -67,7 +68,7 @@ fun ReplayLocationScreen(navController: NavController, viewModel: LocationViewMo
         }
     }
     LaunchedEffect(Unit) {
-        val success = player.start()
+        val success = player.start(context as Activity)
         if (!success) {
             navController.popBackStack()
 
