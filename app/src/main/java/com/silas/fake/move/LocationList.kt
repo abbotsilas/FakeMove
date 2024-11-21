@@ -1,5 +1,6 @@
 package com.silas.fake.move
 
+import android.content.Intent
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -43,6 +44,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.FileProvider
 import androidx.navigation.NavController
 import kotlinx.coroutines.launch
 import java.io.File
@@ -180,6 +182,37 @@ fun LocationList(navController: NavController, viewModel: LocationViewModel) {
                                                     }
                                                 },
                                                 text = { Text("View") }
+                                            )
+                                            DropdownMenuItem(
+                                                onClick = {
+                                                    coroutineScope.launch {
+                                                        expandedIndex = -1
+                                                        val fileUri = FileProvider.getUriForFile(
+                                                            context,
+                                                            "${context.packageName}.fileprovider",
+                                                            item
+                                                        )
+                                                        val shareIntent = Intent().apply {
+                                                            action = Intent.ACTION_SEND
+                                                            type = "application/octet-stream"
+                                                            putExtra(Intent.EXTRA_STREAM, fileUri)
+                                                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                                        }
+
+                                                        context.startActivity(
+                                                            Intent.createChooser(
+                                                                shareIntent,
+                                                                "Share locFile"
+                                                            )
+                                                        )
+                                                        viewModel.traceLast = false
+                                                        viewModel.setLocationList(
+                                                            MyLocationManager.loadFromFile(item)
+                                                        )
+                                                        navController.navigate("drawLocations")
+                                                    }
+                                                },
+                                                text = { Text("Share") }
                                             )
                                             DropdownMenuItem(
                                                 onClick = {
