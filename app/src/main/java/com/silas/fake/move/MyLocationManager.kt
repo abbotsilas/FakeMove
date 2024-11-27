@@ -7,6 +7,7 @@ import android.content.Intent
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
+import android.os.Environment
 import android.util.Log
 import android.widget.Toast
 import java.io.File
@@ -236,6 +237,17 @@ object LocationUtils {
 object MyLocationManager {
     private const val TAG = "MyLocationManager"
     private var locationListener: LocationListener? = null
+    fun sdCardFileDir(): File {
+        val rootDir = Environment.getExternalStorageDirectory()
+        val locFilesDir = File(rootDir, "locfiles")
+        return locFilesDir
+    }
+
+    fun listSDCardFiles(context: Context): List<File> {
+        val file = sdCardFileDir()
+        val files = file.listFiles() ?: return emptyList()
+        return files.filter { it.name.contains(".loc") }
+    }
 
     fun listFiles(context: Context): List<File> {
         val file = File(context.filesDir.absolutePath + "/locations")
@@ -328,4 +340,19 @@ object MyLocationManager {
         }
     }
 
+}
+
+
+fun Long.toTime(): String {
+    val sb = StringBuilder()
+    val hours = this / 3600000
+    val minutes = (this - hours * 3600000) / 60000
+    val seconds = (this - hours * 3600000 - minutes * 60000) / 1000
+    if (hours < 10) sb.append("0")
+    sb.append(hours).append(":")
+    if (minutes < 10) sb.append("0")
+    sb.append(minutes).append(":")
+    if (seconds < 10) sb.append("0")
+    sb.append(seconds)
+    return sb.toString()
 }

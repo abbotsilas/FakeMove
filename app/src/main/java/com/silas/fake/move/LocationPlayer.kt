@@ -7,6 +7,7 @@ import android.location.Location
 import android.location.LocationManager
 import android.widget.Toast
 import androidx.compose.ui.util.lerp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlin.math.PI
 import kotlin.math.cos
 
@@ -14,6 +15,7 @@ class LocationPlayer(
     private val context: Context,
     private val baseList: List<LocationData>,
     private val playModel: LocationViewModel,
+    private val loopCount: Int = 1,
     private val mustMock: Boolean = false
 ) {
 
@@ -22,8 +24,17 @@ class LocationPlayer(
     private var currentLocationManager: LocationManager? = null
     private val provider = "gps"
     private var startTime = System.currentTimeMillis()
-    private val firstTime = baseList[0].time
+    private val firstTime = baseList.first().time
+    private val lastTime = baseList.last().time
+    private var currentLoop = 1
     private val totalDistance = LocationUtils.totalDistance(baseList)
+    fun isFinished(): Boolean {
+        return !currentRunning
+    }
+
+    fun loopInfo(): String {
+        return "loop: $currentLoop/$loopCount"
+    }
 
     @SuppressLint("WrongConstant")
     fun start(context: Activity): Boolean {
@@ -38,7 +49,7 @@ class LocationPlayer(
             try {
                 startTime = System.currentTimeMillis()
                 while (currentRunning) {
-                    val nextLocation = fetchNextLocation()
+                    val nextLocation = takeNextLocation()
                     if (nextLocation == null) {
                         currentRunning = false
                         break
@@ -46,7 +57,6 @@ class LocationPlayer(
                     playModel.addLocationItem(nextLocation)
                     postLocation(nextLocation)
                     Thread.sleep(postInterval)
-                    println("XXX.sendLocation:$nextLocation")
                 }
                 println("XXX====================================")
             } catch (_: Exception) {
@@ -96,9 +106,26 @@ class LocationPlayer(
         return longitudeInMeters
     }
 
+    private fun takeNextLocation(): LocationData? {
+        var next = fetchNextLocation()
+        if (next == null) {
+            println("XXXX.next=null,currentLoop=$currentLoop,loopCount=$loopCount")
+            if (currentLoop < loopCount) {
+                currentLoop++
+                playModel.clearLocationList()
+                startTime = System.currentTimeMillis()
+                next = fetchNextLocation()
+            }
+        }
+        return next;
+    }
+
     private fun fetchNextLocation(): LocationData? {
         val pastTime = ((System.currentTimeMillis() - startTime) * ConfigInfo.speed).toLong()
         val matchedTime = firstTime + pastTime
+        if (matchedTime > lastTime) {
+            return null
+        }
         var from: LocationData? = null
         var to: LocationData? = null
         var distance = 0.0
@@ -129,7 +156,6 @@ class LocationPlayer(
                 altitude = lerp(from.altitude, to.altitude, fraction)
             ).let { shakeLocation(it) }
         }
-        playModel.matchedProgress = 1.0
         return null
     }
 

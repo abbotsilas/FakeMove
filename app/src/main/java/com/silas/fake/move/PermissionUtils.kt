@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
+import android.os.Environment
 import androidx.core.content.ContextCompat
 import kotlin.math.pow
 import kotlin.math.roundToInt
@@ -32,6 +33,19 @@ object PermissionUtils {
             context, Manifest.permission.ACCESS_FINE_LOCATION
         ) == PackageManager.PERMISSION_GRANTED
         println("hasLocationPermission=$hasPermission")
+        return hasPermission
+    }
+
+    fun hasFilePermission(context: Context): Boolean {
+        var hasPermission = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.WRITE_EXTERNAL_STORAGE
+        ) == PackageManager.PERMISSION_GRANTED
+        if (hasPermission) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                hasPermission = Environment.isExternalStorageManager()
+            }
+        }
         return hasPermission
     }
 

@@ -27,8 +27,7 @@ import com.silas.fake.move.LocationData
 import com.silas.fake.move.LocationUtils
 import com.silas.fake.move.LocationViewModel
 import com.silas.fake.move.round
-import kotlin.math.pow
-import kotlin.math.roundToInt
+import com.silas.fake.move.toTime
 
 interface LatLng {
     val latitude: Double
@@ -260,19 +259,6 @@ fun ShowInfo(originalInfo: OriginalInfo?, locationList: List<LocationData>) {
 
 }
 
-private fun Long.toTime(): String {
-    val sb = StringBuilder()
-    val hours = this / 3600000
-    val minutes = (this - hours * 3600000) / 60000
-    val seconds = (this - hours * 3600000 - minutes * 60000) / 1000
-    if (hours < 10) sb.append("0")
-    sb.append(hours).append(":")
-    if (minutes < 10) sb.append("0")
-    sb.append(minutes).append(":")
-    if (seconds < 10) sb.append("0")
-    sb.append(seconds)
-    return sb.toString()
-}
 fun lonToX(longitude: Double, scale: Float, centerLongitude: Double, canvasWidth: Float): Float {
     val xOffset = (longitude - centerLongitude) * DRAW_SCALE_FACTOR * scale
     return (canvasWidth / 2) + xOffset.toFloat()

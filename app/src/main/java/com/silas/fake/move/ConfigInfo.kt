@@ -8,6 +8,7 @@ object ConfigInfo {
     var postInterval: Long = 200
     var speed: Float = 1.0f
     var shakeMeters: Float = 0.4f
+    var loopCycleCount: Int = 1
     private var hasLoad = false
 
     fun loadIfNeed(context: Context) {
@@ -18,6 +19,7 @@ object ConfigInfo {
         postInterval = prefs.getLong("postInterval", postInterval)
         speed = prefs.getFloat("speed", speed)
         shakeMeters = prefs.getFloat("shakeMeters", shakeMeters)
+        loopCycleCount = prefs.getInt("loopCycleCount", loopCycleCount)
         hasLoad = true
     }
 
@@ -27,6 +29,7 @@ object ConfigInfo {
         editor.putLong("postInterval", postInterval)
         editor.putFloat("speed", speed)
         editor.putFloat("shakeMeters", shakeMeters)
+        editor.putInt("loopCycleCount", loopCycleCount)
         editor.apply()
 
     }

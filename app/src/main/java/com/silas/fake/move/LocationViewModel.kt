@@ -10,6 +10,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 
 class LocationViewModel : ViewModel() {
+    var currentIndex by mutableIntStateOf(0)
     var traceLast by mutableStateOf(false)
     var matchedProgress by mutableDoubleStateOf(Double.NaN)
 

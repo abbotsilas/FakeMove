@@ -10,6 +10,8 @@ class PermissionViewModel : ViewModel() {
         private set
     var hasNotificationPermission by mutableStateOf(false)
         private set
+    var hasFilePermission by mutableStateOf(false)
+        private set
 
     fun updateLocationPermission(hasPermission: Boolean) {
         hasLocationPermission = hasPermission
@@ -17,5 +19,9 @@ class PermissionViewModel : ViewModel() {
 
     fun updateNotificationPermission(hasPermission: Boolean) {
         hasNotificationPermission = hasPermission
+    }
+
+    fun updateFilePermission(hasPermission: Boolean) {
+        hasFilePermission = hasPermission
     }
 }

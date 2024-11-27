@@ -3,10 +3,15 @@
 package com.silas.fake.move
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Environment
+import android.provider.Settings
 import android.view.WindowManager
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -31,6 +36,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
@@ -40,21 +46,32 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.silas.fake.move.ui.theme.FakeMoveTheme
+import java.io.File
 
 class MainActivity : ComponentActivity() {
+    private val viewModel = PermissionViewModel()
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         ConfigInfo.loadIfNeed(this)
-        val viewModel = PermissionViewModel()
         viewModel.updateNotificationPermission(PermissionUtils.hasNotificationPermission(this))
         viewModel.updateLocationPermission(PermissionUtils.hasLocationPermission(this))
+        viewModel.updateFilePermission(PermissionUtils.hasFilePermission(this))
         setContent {
             FakeMoveTheme {
                 MyAppNavigation(viewModel)
             }
         }
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        val hasPermission = PermissionUtils.hasFilePermission(this)
+        viewModel.updateFilePermission(hasPermission)
+        if (hasPermission) {
+            createLocFilesDirectory()
+        }
     }
 }
 
@@ -100,6 +117,55 @@ fun LocationButton(viewModel: PermissionViewModel) {
     }
 }
 
+private fun createLocFilesDirectory() {
+    val locFilesDir = MyLocationManager.sdCardFileDir()
+    if (!locFilesDir.exists()) {
+        val isCreated = locFilesDir.mkdir()
+        if (isCreated) {
+            println("locfiles create succeed")
+        } else {
+            println("locfiles create failure")
+        }
+    } else {
+        println("locfiles has exists")
+    }
+}
+
+
+@Composable
+fun ReadFileButton(viewModel: PermissionViewModel) {
+    val context = LocalContext.current
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val writePermissionGranted = permissions[Manifest.permission.WRITE_EXTERNAL_STORAGE] ?: false
+        if (writePermissionGranted) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                if (!Environment.isExternalStorageManager()) {
+                    val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                        data = Uri.parse("package:" + context.packageName)
+                    }
+                    context.startActivity(intent)
+                }
+            } else {
+                createLocFilesDirectory()
+                viewModel.updateFilePermission(true);
+            }
+
+        }
+    }
+    Button(
+        onClick = {
+            launcher.launch(
+                arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.READ_EXTERNAL_STORAGE)
+            )
+        },
+        enabled = !viewModel.hasFilePermission
+    ) {
+        Text(text = if (viewModel.hasFilePermission) "File permission approved" else "Request file permission")
+    }
+}
+
 @Composable
 fun NotificationButton(viewModel: PermissionViewModel) {
 
@@ -132,12 +198,15 @@ fun MainScreen(viewModel: PermissionViewModel, navController: NavController) {
         Text(
             "In order for the app to function properly, you need to grant the following permissions:\n" +
                     "1. Location permission\n" +
-                    "2. Post notification permission"
+                    "2. Read file permission\n" +
+                    "3. Post notification permission"
         )
         Spacer(Modifier.height(10.dp))
         LocationButton(viewModel)
         Spacer(Modifier.height(10.dp))
         NotificationButton(viewModel)
+        Spacer(Modifier.height(10.dp))
+        ReadFileButton(viewModel)
         Spacer(Modifier.height(10.dp))
 
         Button(

@@ -27,10 +27,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -49,6 +52,7 @@ fun ReplayLocationScreen(navController: NavController, viewModel: LocationViewMo
             context = context,
             baseList = baseList,
             playModel = playModel,
+            loopCount = ConfigInfo.loopCycleCount,
             mustMock = false
         )
     }
@@ -79,7 +83,11 @@ fun ReplayLocationScreen(navController: NavController, viewModel: LocationViewMo
         return
     }
     BackHandler(enabled = true) {
-        confirmModel.showConfirmationDialog = true
+        if (player.isFinished()) {
+            doBack()
+        } else {
+            confirmModel.showConfirmationDialog = true
+        }
     }
     ConfirmDialog(confirmModel)
     Scaffold(
@@ -102,6 +110,7 @@ fun ReplayLocationScreen(navController: NavController, viewModel: LocationViewMo
                         .align(Alignment.BottomStart)
                         .padding(start = 20.dp, bottom = 20.dp),
                 ) {
+                    Text(player.loopInfo(), style = TextStyle(fontSize = 18.sp, color = Color.Red))
                     Button(
                         onClick = {
                             context.startService(Intent(context, MockLocationService::class.java))
