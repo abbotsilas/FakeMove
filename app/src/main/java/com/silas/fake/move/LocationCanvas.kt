@@ -211,7 +211,6 @@ fun ShowInfo(originalInfo: OriginalInfo?, locationList: List<LocationData>) {
         val time = locationList.last().time - locationList.first().time
         Text("SpentTime: ${time.toTime()}")
         val currentDistance = LocationUtils.totalDistance(locationList)
-        var distanceText = ""
         if (originalInfo != null) {
             Row(
                 modifier = Modifier

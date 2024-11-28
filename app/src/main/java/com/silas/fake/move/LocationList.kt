@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -33,7 +32,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -41,13 +39,11 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.motionEventSpy
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
@@ -153,10 +149,49 @@ private fun ShowList(list: SnapshotStateList<LocItem>, viewModel: LocationViewMo
     var expandedIndex by remember { mutableIntStateOf(-1) }
     val confirmModel = remember {
         ConfirmDialogViewModel().apply {
-            title = "Confirm Delete"
+            title = "Confirm"
             message = "Are you sure to delete this record?"
         }
     }
+
+    fun toDelete(file: File, index: Int) {
+        confirmModel.value = null
+        confirmModel.message = "Are you sure to delete '${file.name}'?"
+        confirmModel.okCallback = {
+            coroutineScope.launch {
+                file.delete()
+                list.removeAt(index)
+            }
+        }
+        confirmModel.showConfirmationDialog = true
+    }
+
+    fun replayIt(locationList: List<LocationData>, loopCount: Int) {
+        viewModel.setLocationList(locationList)
+        viewModel.traceLast = true
+        viewModel.loopCount = loopCount
+        navController.navigate("replay")
+    }
+
+    fun toReplay(file: File) {
+        val locationList = MyLocationManager.loadFromFile(file)
+        val firstLoc = locationList.first()
+        val lastLoc = locationList.last()
+        val distance =
+            LocationUtils.distance(firstLoc.latitude, firstLoc.longitude, lastLoc.latitude, lastLoc.longitude)
+        if (distance > 20) {
+            confirmModel.value = locationList
+            confirmModel.message =
+                "The distance is ${distance.round(2)}m, can not be loop more than 1, continue without loop?"
+            confirmModel.okCallback = {
+                replayIt(locationList, 1)
+            }
+            confirmModel.showConfirmationDialog = true
+        } else {
+            replayIt(locationList, ConfigInfo.loopCycleCount)
+        }
+    }
+
     ConfirmDialog(confirmModel)
     LazyColumn(
         modifier = Modifier
@@ -232,10 +267,7 @@ private fun ShowList(list: SnapshotStateList<LocItem>, viewModel: LocationViewMo
 
                                     coroutineScope.launch {
                                         expandedIndex = -1
-                                        val locationList = MyLocationManager.loadFromFile(item.file)
-                                        viewModel.setLocationList(locationList)
-                                        viewModel.traceLast = true
-                                        navController.navigate("replay")
+                                        toReplay(item.file)
                                     }
 
                                 },
@@ -276,11 +308,6 @@ private fun ShowList(list: SnapshotStateList<LocItem>, viewModel: LocationViewMo
                                                 "Share locFile"
                                             )
                                         )
-                                        viewModel.traceLast = false
-                                        viewModel.setLocationList(
-                                            MyLocationManager.loadFromFile(item.file)
-                                        )
-                                        navController.navigate("drawLocations")
                                     }
                                 },
                                 text = { Text("Share") }
@@ -290,14 +317,7 @@ private fun ShowList(list: SnapshotStateList<LocItem>, viewModel: LocationViewMo
                                     coroutineScope.launch {
                                         expandedIndex = -1
                                         val file = list[index].file
-                                        confirmModel.message = "Are you sure to delete '${file.name}'?"
-                                        confirmModel.okCallback = {
-                                            coroutineScope.launch {
-                                                file.delete()
-                                                list.removeAt(index)
-                                            }
-                                        }
-                                        confirmModel.showConfirmationDialog = true
+                                        toDelete(file, index)
                                     }
                                 },
                                 text = { Text("Delete") }

@@ -2,6 +2,7 @@ package com.silas.fake.move
 
 import android.app.Activity
 import android.content.Intent
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,6 +23,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -42,19 +44,33 @@ fun ReplayLocationScreen(navController: NavController, viewModel: LocationViewMo
     val context = LocalContext.current
     val configuration = LocalConfiguration.current
     val density = LocalDensity.current.density
+    val loopCount = viewModel.loopCount
     val screenWidthPx = configuration.screenWidthDp * density
     val screenHeightPx = configuration.screenHeightDp * density
     val baseList = viewModel.locationList.toList()
     val playModel = remember { LocationViewModel().apply { traceLast = viewModel.traceLast } }
     var computed by remember { mutableStateOf(false) }
+    var watchIndex by remember { mutableIntStateOf(0) }
+    var loopInfo by remember { mutableStateOf("") }
+    var finished by remember { mutableStateOf(false) }
+
+
     val player = remember {
         LocationPlayer(
             context = context,
             baseList = baseList,
             playModel = playModel,
-            loopCount = ConfigInfo.loopCycleCount,
-            mustMock = false
+            loopCount = loopCount,
+            mustMock = false,
+            callback = {
+                watchIndex++
+            }
         )
+    }
+
+    LaunchedEffect(watchIndex) {
+        loopInfo = player.loopInfo()
+        finished = player.isFinished()
     }
 
     fun doBack() {
@@ -110,20 +126,26 @@ fun ReplayLocationScreen(navController: NavController, viewModel: LocationViewMo
                         .align(Alignment.BottomStart)
                         .padding(start = 20.dp, bottom = 20.dp),
                 ) {
-                    Text(player.loopInfo(), style = TextStyle(fontSize = 18.sp, color = Color.Red))
-                    Button(
-                        onClick = {
-                            context.startService(Intent(context, MockLocationService::class.java))
-                            (context as? MainActivity)?.moveTaskToBack(true)
-                        }
+                    Text(text = loopInfo, style = TextStyle(fontSize = 18.sp, color = Color.Red))
+                    var text = "Stop"
+                    if (finished) {
+                        text = "Finished,Go back"
+                    } else {
+                        Button(
+                            onClick = {
+                                context.startService(Intent(context, MockLocationService::class.java))
+                                (context as? MainActivity)?.moveTaskToBack(true)
+                            }
 
-                    ) { Text("Run at background") }
+                        ) { Text("Run at background") }
+                    }
                     Button(
                         onClick = {
                             doBack()
                         }
 
-                    ) { Text("Stop") }
+                    ) { Text(text = text) }
+
                 }
 
             }

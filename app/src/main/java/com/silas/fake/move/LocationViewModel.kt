@@ -12,6 +12,8 @@ import androidx.lifecycle.ViewModel
 class LocationViewModel : ViewModel() {
     var currentIndex by mutableIntStateOf(0)
     var traceLast by mutableStateOf(false)
+    var loopCount by mutableIntStateOf(1)
+
     var matchedProgress by mutableDoubleStateOf(Double.NaN)
 
     var locationList = mutableStateListOf<LocationData>()

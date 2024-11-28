@@ -6,6 +6,8 @@ import android.content.Context
 import android.location.Location
 import android.location.LocationManager
 import android.widget.Toast
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.util.lerp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlin.math.PI
@@ -16,10 +18,11 @@ class LocationPlayer(
     private val baseList: List<LocationData>,
     private val playModel: LocationViewModel,
     private val loopCount: Int = 1,
-    private val mustMock: Boolean = false
+    private val mustMock: Boolean = false,
+    private val callback: (() -> Unit)? = null,
 ) {
 
-    private var currentRunning = false
+    private var currentRunning = true
     private var thread: Thread? = null
     private var currentLocationManager: LocationManager? = null
     private val provider = "gps"
@@ -28,6 +31,7 @@ class LocationPlayer(
     private val lastTime = baseList.last().time
     private var currentLoop = 1
     private val totalDistance = LocationUtils.totalDistance(baseList)
+
     fun isFinished(): Boolean {
         return !currentRunning
     }
@@ -52,6 +56,7 @@ class LocationPlayer(
                     val nextLocation = takeNextLocation()
                     if (nextLocation == null) {
                         currentRunning = false
+                        callback?.invoke()
                         break
                     }
                     playModel.addLocationItem(nextLocation)
@@ -115,6 +120,7 @@ class LocationPlayer(
                 playModel.clearLocationList()
                 startTime = System.currentTimeMillis()
                 next = fetchNextLocation()
+                callback?.invoke()
             }
         }
         return next;
