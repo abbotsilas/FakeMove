@@ -58,6 +58,8 @@ fun SettingScreen(navController: NavController) {
     var postInterval by remember { mutableLongStateOf(ConfigInfo.postInterval) }
     var changed by remember { mutableStateOf(false) }
     var loopCount by remember { mutableStateOf(ConfigInfo.loopCycleCount.toString()) }
+    var loopDistance by remember { mutableIntStateOf(ConfigInfo.loopDistance) }
+
     val confirmModel = remember {
         ConfirmDialogViewModel().apply {
             title = "Some changed"
@@ -191,6 +193,23 @@ fun SettingScreen(navController: NavController) {
                     )
                 }
                 Spacer(Modifier.height(16.dp))
+                Text("Loop distance:$loopDistance meters")
+                Text(
+                    color = Color.Red,
+                    style = TextStyle(
+                        fontSize = 12.sp
+                    ),
+                    text = "The max distance when loop enabled, otherwise the loop will be restrict to once"
+                )
+                Slider(
+                    value = loopDistance.toFloat(),
+                    onValueChange = {
+                        changed = true
+                        loopDistance = it.toInt()
+                    },
+                    valueRange = 10f..1000f,
+                    modifier = Modifier.fillMaxWidth()
+                )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly
@@ -203,6 +222,7 @@ fun SettingScreen(navController: NavController) {
                             ConfigInfo.shakeMeters = shakeMeters
                             ConfigInfo.postInterval = postInterval
                             ConfigInfo.loopCycleCount = loopCount.toIntOrNull() ?: 1
+                            ConfigInfo.loopDistance = loopDistance
                             ConfigInfo.save(context)
                         }) {
                         Text("Save")
@@ -214,6 +234,7 @@ fun SettingScreen(navController: NavController) {
                             shakeMeters = 0.1f
                             postInterval = 200
                             loopCount = "1"
+                            loopDistance = 10
                         }) {
                         Text("Reset")
                     }

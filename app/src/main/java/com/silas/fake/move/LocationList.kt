@@ -179,16 +179,17 @@ private fun ShowList(list: SnapshotStateList<LocItem>, viewModel: LocationViewMo
         val lastLoc = locationList.last()
         val distance =
             LocationUtils.distance(firstLoc.latitude, firstLoc.longitude, lastLoc.latitude, lastLoc.longitude)
-        if (distance > 20) {
+        val loopCount = ConfigInfo.loopCycleCount
+        if (loopCount > 1 && distance > ConfigInfo.loopDistance) {
             confirmModel.value = locationList
             confirmModel.message =
-                "The distance is ${distance.round(2)}m, can not be loop more than 1, continue without loop?"
+                "The distance is ${distance.round(2)}m,more than max distance:${ConfigInfo.loopDistance}m, can not be loop more than 1, continue without loop?"
             confirmModel.okCallback = {
                 replayIt(locationList, 1)
             }
             confirmModel.showConfirmationDialog = true
         } else {
-            replayIt(locationList, ConfigInfo.loopCycleCount)
+            replayIt(locationList, loopCount)
         }
     }
 

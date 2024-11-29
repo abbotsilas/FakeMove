@@ -54,7 +54,6 @@ fun ReplayLocationScreen(navController: NavController, viewModel: LocationViewMo
     var loopInfo by remember { mutableStateOf("") }
     var finished by remember { mutableStateOf(false) }
 
-
     val player = remember {
         LocationPlayer(
             context = context,
@@ -71,6 +70,7 @@ fun ReplayLocationScreen(navController: NavController, viewModel: LocationViewMo
     LaunchedEffect(watchIndex) {
         loopInfo = player.loopInfo()
         finished = player.isFinished()
+        SharedNotifyMessage.notifyMessage.postValue(loopInfo)
     }
 
     fun doBack() {
@@ -89,9 +89,10 @@ fun ReplayLocationScreen(navController: NavController, viewModel: LocationViewMo
     }
     LaunchedEffect(Unit) {
         val success = player.start(context as Activity)
-        if (!success) {
+        if (success) {
+            context.startService(Intent(context, MockLocationService::class.java))
+        } else {
             navController.popBackStack()
-
         }
         computed = success
     }
