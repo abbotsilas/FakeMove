@@ -4,10 +4,13 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -91,6 +94,7 @@ fun RecordingScreen(navController: NavController, viewModel: LocationViewModel) 
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
                         .padding(0.dp),
                     verticalArrangement = Arrangement.Top,
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -98,7 +102,6 @@ fun RecordingScreen(navController: NavController, viewModel: LocationViewModel) 
                     Text(
                         modifier = Modifier.padding(
                             top = 0.dp,
-                            bottom = 16.dp,
                             start = 16.dp,
                             end = 16.dp
                         ),
@@ -173,46 +176,51 @@ fun RecordingScreen(navController: NavController, viewModel: LocationViewModel) 
                         }
                     }
 
-                    Button(
-                        enabled = !recording,
-                        onClick = {
-                            val success =
-                                MyLocationManager.startRecord(context, object : LocationCallback {
-                                    override fun onLocationChanged(location: LocationData) {
-                                        text += "\n$location"
-                                        if (text.length > 10000) {
-                                            text = text.substring(text.length - 10000)
-                                        }
-                                        list.add(location)
-                                        viewModel.addLocationItem(location)
-                                    }
-                                })
-                            text = "start success: $success"
-                            list.clear()
-                            viewModel.clearLocationList()
-                            recording = success
-                        }) {
-                        Text(text = "Start")
-                    }
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Button(
-                        enabled = recording,
-                        onClick = {
-                            recording = false
-                            MyLocationManager.stopRecord(context)
-                            text += "\nstopped"
-                        }) {
-                        Text(text = "Stop")
-                    }
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Button(
-                        enabled = list.isNotEmpty(),
-                        onClick = {
-                            showDialog = true
-                        }
+                    Row(
+                        modifier = Modifier.padding(8.dp)
                     ) {
-                        Text(text = "Save")
+                        Button(
+                            enabled = !recording,
+                            onClick = {
+                                val success =
+                                    MyLocationManager.startRecord(context, object : LocationCallback {
+                                        override fun onLocationChanged(location: LocationData) {
+                                            text += "\n$location"
+                                            if (text.length > 10000) {
+                                                text = text.substring(text.length - 10000)
+                                            }
+                                            list.add(location)
+                                            viewModel.addLocationItem(location)
+                                        }
+                                    })
+                                text = "start success: $success"
+                                list.clear()
+                                viewModel.clearLocationList()
+                                recording = success
+                            }) {
+                            Text(text = "Start")
+                        }
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Button(
+                            enabled = recording,
+                            onClick = {
+                                recording = false
+                                MyLocationManager.stopRecord(context)
+                                text += "\nstopped"
+                            }) {
+                            Text(text = "Stop")
+                        }
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Button(
+                            enabled = list.isNotEmpty(),
+                            onClick = {
+                                showDialog = true
+                            }
+                        ) {
+                            Text(text = "Save")
+                        }
                     }
+
                     Spacer(modifier = Modifier.height(20.dp))
                     if (showDialog) {
                         InputDialog(
